@@ -1,0 +1,36 @@
+# Philippines 2024 — STEP 1: download raw files
+# Run: python -m src.data.download_climate --config options/ag_cube_weather_phl_2024_download.yaml
+
+DATES:
+  starting_date: "2023-10-01"   # 6 months before earliest collection (2024-04-02)
+  ending_date:   "2024-09-30"   # covers last collection date (2024-09-18)
+
+SPATIAL_INFO:
+  spatial_file: null
+  extent: [121.0, 7.0, 126.0, 18.0]   # [xmin, ymin, xmax, ymax]  Philippines
+
+PATHS:
+  output_path: outputs/climate_data
+
+WEATHER:
+  variables:
+    temperature_tmax:     {mission: agera5, source: agera5}
+    temperature_tmin:     {mission: agera5, source: agera5}
+    solar_radiation:      {mission: agera5, source: agera5}
+    relative_humidity_06: {mission: agera5, source: agera5}
+    relative_humidity_09: {mission: agera5, source: agera5}
+    relative_humidity_12: {mission: agera5, source: agera5}
+    relative_humidity_15: {mission: agera5, source: agera5}
+    relative_humidity_18: {mission: agera5, source: agera5}
+    vapour_pressure_defficit: {mission: agera5, source: agera5}
+    reference_evapotranspiration: {mission: agera5, source: agera5}
+    dew_point_temperature: {mission: agera5, source: agera5}
+    precipitation:        {mission: chirps, source: chirps}
+
+GENERAL:
+  task:              download
+  suffix:            phl_2024
+  ncores:            5
+  export_as_netcdf:  false
+  agera5_version:    "2_0"
+  reference_variable: precipitation

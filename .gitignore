@@ -21,6 +21,7 @@ outputs/
 *.zip
 docs/
 bibliography/
+
 # Environment
 .venv/
 env/

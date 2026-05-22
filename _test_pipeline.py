@@ -13,8 +13,13 @@ print("--- Testing src imports ---")
 from src.features.climate_indices import calculate_indices
 from src.features.met_summaries import calculate_meteorological_summaries
 from src.utils.spatial_utils import extracting_using_gpdf
-from src.utils.visualization import plot_facet_grid
-print("  [OK] climate_indices, met_summaries, spatial_utils, visualization")
+print("  [OK] climate_indices, met_summaries, spatial_utils")
+# visualization imports matplotlib — skip in headless test
+try:
+    from src.utils.visualization import plot_facet_grid
+    print("  [OK] visualization")
+except ModuleNotFoundError as e:
+    print(f"  [skip] visualization ({e})")
 
 # ── 2. Load observations ──────────────────────────────────────────────────
 print("\n--- Loading CWBD_PHL.csv ---")
@@ -87,7 +92,7 @@ windows = {
 }
 print(f"\n  Evaluation date : {eval_date.date()}")
 for label, (s, e) in windows.items():
-    print(f"  {label}            : {s.date()} → {e.date()}  ({(e-s).days} days)")
+    print(f"  {label}            : {s.date()} to {e.date()}  ({(e-s).days} days)")
 
 # ── 4. Summaries + indices per window ─────────────────────────────────────
 print("\n--- Computing summaries & indices per window ---")
