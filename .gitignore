@@ -1,0 +1,32 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+
+# Data and Outputs (Large Files)
+data/
+data/*.parquet
+outputs/
+*.nc
+*.tif
+*.shp
+*.dbf
+*.shx
+*.prj
+*.cpg
+*.zip
+docs/
+bibliography/
+# Environment
+.venv/
+env/
+venv/
+.env
+
+# OS
+.DS_Store
+Thumbs.db

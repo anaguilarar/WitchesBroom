@@ -1,0 +1,79 @@
+# WitchesBroom pipeline configuration
+# ---------------------------------------------------------------------------
+# Edit this file to change spatial extents, date ranges, or variable lists
+# before running any src/data or src/processing script.
+# ---------------------------------------------------------------------------
+
+# ── Countries of interest ──────────────────────────────────────────────────
+countries:
+  # ISO3 codes used for ADM boundary downloads (src/data/download_adm.py)
+  southeast_asia:
+    - THA   # Thailand
+    - LAO   # Laos
+    - KHM   # Cambodia
+    - VNM   # Vietnam
+    - PHL   # Philippines
+    - MMR   # Myanmar
+  central_america:
+    - HND   # Honduras
+    - COL   # Colombia
+
+# ── Spatial extents ────────────────────────────────────────────────────────
+spatial:
+  # [xmin, ymin, xmax, ymax]  –  Southeast Asia full region
+  extent: [96.98, 5.6, 110.0, 23.4]
+
+  # Smaller test area (Thailand subset)
+  extent_test: [97.0, 10.0, 102.0, 13.0]
+
+# ── Date ranges ────────────────────────────────────────────────────────────
+dates:
+  # Historical training period
+  starting_date: "2013-01-01"
+  ending_date:   "2022-12-31"
+
+  # Validation period (held out)
+  validation_year: 2022
+
+  # 2024 Philippines campaign
+  phl_starting_date: "2024-01-01"
+  phl_ending_date:   "2024-12-31"
+
+# ── Weather variables ──────────────────────────────────────────────────────
+weather:
+  agera5_variables:
+    temperature_tmax:     {mission: agera5, source: agera5}
+    temperature_tmin:     {mission: agera5, source: agera5}
+    solar_radiation:      {mission: agera5, source: agera5}
+    relative_humidity_06: {mission: agera5, source: agera5}
+    relative_humidity_09: {mission: agera5, source: agera5}
+    relative_humidity_12: {mission: agera5, source: agera5}
+    relative_humidity_15: {mission: agera5, source: agera5}
+    relative_humidity_18: {mission: agera5, source: agera5}
+
+  chirps_variables:
+    precipitation: {mission: chirps, source: chirps}
+
+# ── Climate index defaults ─────────────────────────────────────────────────
+# These match the 180-day lookback used in the exploratory notebook.
+indices:
+  lookback_days: 180        # days before collection date
+  vpd_threshold: 1.5        # kPa  (humid day if VPD ≤ this)
+  precip_wet_threshold: 1.0 # mm/d (wet day if precip ≥ this)
+  spell_window: 7           # consecutive days for spell events
+  temp_base: 15             # °C base temperature for GDD
+
+# ── Paths ──────────────────────────────────────────────────────────────────
+paths:
+  raw_data:         data/raw
+  processed_data:   data/processed
+  adm_data:         data/adm
+  climate_output:   outputs/climate_data
+  spatial_output:   outputs/spatial_data
+  model_output:     outputs/model_outputs
+  plots:            outputs/plots
+
+# ── General ────────────────────────────────────────────────────────────────
+general:
+  suffix: "sea"   # appended to output folder names
+  ncores: 5       # parallel download cores
