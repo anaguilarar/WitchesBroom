@@ -75,7 +75,7 @@ def threshold_days(xrclimatedata, value, meteorological_var, op='>='):
     """Count days where *xrclimatedata* satisfies *op* against *value*."""
     xrclimatedata = set_variable_units(xrclimatedata, meteorological_var)
     mask = mask_operation(xrclimatedata, op, value, xrclimatedata.attrs['units'])
-    return mask.sum(dim='time')
+    return mask.sum(dim='date')
 
 
 def multiple_threshold_days(xrclimatedata, values, op_symbols, meteorological_var):
@@ -86,14 +86,14 @@ def multiple_threshold_days(xrclimatedata, values, op_symbols, meteorological_va
     values = list(values) if not isinstance(values, list) else values
     for op, v in zip(op_symbols, values):
         mask = mask * mask_operation(xrclimatedata, op, v, xrclimatedata.attrs['units'])
-    return mask.sum(dim='time')
+    return mask.sum(dim='date')
 
 
 def consecutive_days(xrclimatedata, value, meteorological_var, op='>='):
     """Longest run of consecutive days satisfying the threshold condition."""
     xrclimatedata = set_variable_units(xrclimatedata, meteorological_var)
     mask = mask_operation(xrclimatedata, op, value, xrclimatedata.attrs['units'])
-    return run_length.longest_run(mask, dim='time')
+    return run_length.longest_run(mask, dim='date')
 
 
 def get_avg_spell_length(precip_1d, threshold=1.0, window=5,
@@ -131,10 +131,6 @@ def get_avg_spell_length(precip_1d, threshold=1.0, window=5,
     return np.mean(valid) if len(valid) > 0 else np.nan
 
 
-# ---------------------------------------------------------------------------
-# Main index computation
-# ---------------------------------------------------------------------------
-
 def calculate_indices(xrdata, climate_indices):
     """
     Compute a set of climate indices from a meteorological xarray Dataset.
@@ -142,9 +138,9 @@ def calculate_indices(xrdata, climate_indices):
     Parameters
     ----------
     xrdata : xarray.Dataset
-        Must have a 'time' dimension.  Expected variables depend on the
+        Must have a 'date' dimension.  Expected variables depend on the
         requested indices (see module docstring for full list).
-    climate_indices : dict
+    climate_indices : dict | List[ClimateIndex]
         Mapping of index name → parameter list.  Recognised keys:
 
         vpd_lt_15, n_vpd_spells, n_wet_spells, n_dry_spells,
@@ -158,123 +154,221 @@ def calculate_indices(xrdata, climate_indices):
     xarray.Dataset
         One variable per requested index.
     """
-    out = {}
 
-    if "vpd_lt_15" in climate_indices:
-        var, thresh = climate_indices["vpd_lt_15"]
+    out = {}
+    idx_map = {idx.name: idx for idx in climate_indices}
+
+    if "vpd_lt_15" in idx_map:
+        idx = idx_map["vpd_lt_15"]
+        var = idx.meteorological_variables[0]
+        thresh = idx.parameters.get("threshold", 1.5) if idx.parameters else 1.5
+        
         out["vpd_lt_15"] = (
             threshold_days(xrdata[var], thresh, meteorological_var='vpd', op='<=')
-            / len(xrdata.time)
+            / len(xrdata.date)
         ) * 100
 
-    if "n_vpd_spells" in climate_indices:
-        var, thresh, window = climate_indices["n_vpd_spells"]
+    if "n_vpd_spells" in idx_map:
+        idx = idx_map["n_vpd_spells"]
+        var = idx.meteorological_variables[0]
+        params = idx.parameters or {}
+        thresh = params.get("threshold", 1.5)
+        window = params.get("min_duration_days", 7)
+        
         is_humid = xrdata[var] <= thresh
         out["n_vpd_spells"] = run_length.windowed_run_events(
-            is_humid, window=window, dim='time'
+            is_humid, window=window, dim='date'
         )
 
-    if "n_wet_spells" in climate_indices:
-        var, thresh, window = climate_indices["n_wet_spells"]
+    if "n_wet_spells" in idx_map:
+        idx = idx_map["n_wet_spells"]
+        var = idx.meteorological_variables[0]
+        params = idx.parameters or {}
+        thresh = params.get("threshold_mm", 1.0)
+        min_duration = params.get("min_duration_days", 7)
+        
         out["n_wet_spells"] = run_length.windowed_run_events(
-            xrdata[var] >= thresh, window=window, dim='time'
+            xrdata[var] >= thresh, window=min_duration, dim='date'
         )
 
-    if "n_dry_spells" in climate_indices:
-        var, thresh, window = climate_indices["n_dry_spells"]
+    if "n_dry_spells" in idx_map:
+        idx = idx_map["n_dry_spells"]
+        var = idx.meteorological_variables[0]
+        params = idx.parameters or {}
+        thresh = params.get("threshold_mm", 1.0)
+        min_duration = params.get("min_duration_days", 7)
+        
         out["n_dry_spells"] = run_length.windowed_run_events(
-            xrdata[var] < thresh, window=window, dim='time'
+            xrdata[var] < thresh, window=min_duration, dim='date'
         )
-
-    if "avg_wet_spell_duration" in climate_indices:
-        var, thresh, window = climate_indices["avg_wet_spell_duration"]
-        out["avg_wet_spell_duration"] = xarray.apply_ufunc(
+    
+    if "heat_wave_duration" in idx_map:
+        idx = idx_map["heat_wave_duration"]
+        var = idx.meteorological_variables[0]
+        params = idx.parameters or {}
+        thresh = params.get("thresh", 35.0)
+        min_duration_days = params.get("min_duration_days", 5)
+        
+        out["heat_wave_duration"] = xarray.apply_ufunc(
             get_avg_spell_length,
             xrdata[var],
-            kwargs={'threshold': thresh, 'window': window,
+            kwargs={'threshold': thresh, 'window': min_duration_days,
                     'cond_op': '>=', 'window_op': '>='},
-            input_core_dims=[['time']],
+            input_core_dims=[['date']],
+            output_core_dims=[[]],
+            vectorize=True,
+            dask='allowed',
+            output_dtypes=[float],
+        )
+        
+    if "cold_wave_duration" in idx_map:
+        idx = idx_map["cold_wave_duration"]
+        var = idx.meteorological_variables[0]
+        params = idx.parameters or {}
+        thresh = params.get("thresh", 5.0)
+        min_duration_days = params.get("min_duration_days", 5)
+        
+        out["cold_wave_duration"] = xarray.apply_ufunc(
+            get_avg_spell_length,
+            xrdata[var],
+            kwargs={'threshold': thresh, 'window': min_duration_days,
+                    'cond_op': '<=', 'window_op': '>='},
+            input_core_dims=[['date']],
             output_core_dims=[[]],
             vectorize=True,
             dask='allowed',
             output_dtypes=[float],
         )
 
-    if "avg_dry_spell_duration" in climate_indices:
-        var, thresh, window = climate_indices["avg_dry_spell_duration"]
+    if "avg_wet_spell_duration" in idx_map:
+        idx = idx_map["avg_wet_spell_duration"]
+        var = idx.meteorological_variables[0]
+        params = idx.parameters or {}
+        thresh = params.get("threshold_mm", 1.0)
+        min_duration = params.get("min_duration_days", 7)
+        
+        out["avg_wet_spell_duration"] = xarray.apply_ufunc(
+            get_avg_spell_length,
+            xrdata[var],
+            kwargs={'threshold': thresh, 'window': min_duration,
+                    'cond_op': '>=', 'window_op': '>='},
+            input_core_dims=[['date']],
+            output_core_dims=[[]],
+            vectorize=True,
+            dask='allowed',
+            output_dtypes=[float],
+        )
+
+    if "avg_dry_spell_duration" in idx_map:
+        idx = idx_map["avg_dry_spell_duration"]
+        var = idx.meteorological_variables[0]
+        params = idx.parameters or {}
+        thresh = params.get("threshold_mm", 1.0)
+        window = params.get("min_duration_days", 7)
+        
         out["avg_dry_spell_duration"] = xarray.apply_ufunc(
             get_avg_spell_length,
             xrdata[var],
             kwargs={'threshold': thresh, 'window': window,
                     'cond_op': '<', 'window_op': '>='},
-            input_core_dims=[['time']],
+            input_core_dims=[['date']],
             output_core_dims=[[]],
             vectorize=True,
             dask='allowed',
             output_dtypes=[float],
         )
+    
+    if "rh_85_90_days" in idx_map:
+        idx = idx_map["rh_85_90_days"]
+        # Can easily iterate over an array list of multi-layer string metrics
+        var_names = idx.meteorological_variables
+        params = idx.parameters or {}
+        thresholds = params.get("thresholds", [85, 90])
+        op_symbols = params.get("op_symbols", [">=", "<="])
+        
+        for var in var_names:
+            out[f'{var}_85_90_days'] = multiple_threshold_days(
+                xrdata[var], values=thresholds,
+                op_symbols=op_symbols, meteorological_var='hr'
+            )
 
-    if "rh_85_90_days" in climate_indices:
-        var_names, thresholds, op_symbols = climate_indices["rh_85_90_days"]
-        if isinstance(var_names, list):
-            for var in var_names:
-                out[f'{var}_85_90_days'] = multiple_threshold_days(
-                    xrdata[var], values=thresholds,
-                    op_symbols=op_symbols, meteorological_var='hr'
-                )
-
-    if "tmean_25_30_days" in climate_indices:
-        var, thresholds, op_symbols = climate_indices["tmean_25_30_days"]
+    if "tmean_25_30_days" in idx_map:
+        idx = idx_map["tmean_25_30_days"]
+        var = idx.meteorological_variables[0]
+        params = idx.parameters or {}
+        thresholds = params.get("thresholds", [25, 30])
+        op_symbols = params.get("op_symbols", [">=", "<="])
+        
         out["tmean_25_30_days"] = multiple_threshold_days(
             xrdata[var], values=thresholds,
             op_symbols=op_symbols, meteorological_var='hr'
         )
 
-    if "max_temp_days" in climate_indices:
-        var, thresh = climate_indices["max_temp_days"]
+    if "max_temp_days" in idx_map:
+        idx = idx_map["max_temp_days"]
+        var = idx.meteorological_variables[0]
+        thresh = idx.parameters.get("threshold_celsius", 35.0) if idx.parameters else 35.0
+        
         out["max_temp_days"] = threshold_days(
             xrdata[var], thresh, meteorological_var='temp', op='>='
         )
+    rhoptions = ["hr", "hr06", "hr09", "hr12", "hr15", "hr18"]
+    for option in rhoptions:
+        option = f"max_{option}_days"
+        if option in idx_map:
+            idx = idx_map[option]
+            var = idx.meteorological_variables[0]
+            thresh = idx.parameters.get("threshold_percent", 80.0) if idx.parameters else 80.0
+            
+            out[option] = threshold_days(
+                xrdata[var], thresh, meteorological_var='hr', op='>='
+            )
 
-    if "max_hr_days" in climate_indices:
-        var, thresh = climate_indices["max_hr_days"]
-        out["max_hr_days"] = threshold_days(
-            xrdata[var], thresh, meteorological_var='hr', op='>='
-        )
+    if "precip_max_15d" in idx_map:
+        idx = idx_map["precip_max_15d"]
+        var = idx.meteorological_variables[0]
+        out["precip_max_15d"] = xrdata[var].rolling(date=15).sum().max(dim='date')
 
-    if "precip_max_15d" in climate_indices:
-        var = climate_indices["precip_max_15d"]
-        out["precip_max_15d"] = xrdata[var].rolling(time=15).sum().max(dim='time')
-
-    if "consecutive_dry_days" in climate_indices:
-        var, thresh = climate_indices["consecutive_dry_days"]
+    if "consecutive_dry_days" in idx_map:
+        idx = idx_map["consecutive_dry_days"]
+        var = idx.meteorological_variables[0]
+        thresh = idx.parameters.get("threshold_mm", 1.0) if idx.parameters else 1.0
+        
         out["consecutive_dry_days"] = consecutive_days(
             xrdata[var], value=thresh, meteorological_var='prec', op='<'
         )
 
-    if "growing_degree_days" in climate_indices:
-        var, tbase = climate_indices["growing_degree_days"]
+    if "growing_degree_days" in idx_map:
+        idx = idx_map["growing_degree_days"]
+        var = idx.meteorological_variables[0]
+        tbase = idx.parameters.get("base_temperature", 15.0) if idx.parameters else 15.0
+        
         out["growing_degree_days"] = (xrdata[var] - tbase).sum(
-            dim='time', keep_attrs=True
+            dim='date', keep_attrs=True
         )
 
-    if "daily_intensity_index" in climate_indices:
-        var, thresh = climate_indices["daily_intensity_index"]
+    if "daily_intensity_index" in idx_map:
+        idx = idx_map["daily_intensity_index"]
+        var = idx.meteorological_variables[0]
+        thresh = idx.parameters.get("threshold_mm", 1.0) if idx.parameters else 1.0
+        
         out["daily_intensity_index"] = xrdata[var].where(
             xrdata[var] >= thresh
-        ).mean(dim='time', keep_attrs=True)
+        ).mean(dim='date', keep_attrs=True)
 
-    if "disease_pressure_index" in climate_indices:
-        vpd_var = climate_indices["disease_pressure_index"]
+    if "disease_pressure_index" in idx_map:
+        idx = idx_map["disease_pressure_index"]
+        vpd_var = idx.meteorological_variables[0]
+        
         if "max_hr_days" in out and "daily_intensity_index" in out:
             rh_norm  = normalize(out["max_hr_days"])
             pi_norm  = normalize(out["daily_intensity_index"])
-            vpd_norm = normalize(xrdata[vpd_var].mean(dim='time', keep_attrs=True))
+            vpd_norm = normalize(xrdata[vpd_var].mean(dim='date', keep_attrs=True))
             out["disease_pressure_index"] = (
                 (rh_norm * pi_norm) / vpd_norm
             ).clip(min=0, max=1)
 
-    # Unwrap single-variable Datasets that xclim may return
+    # Clean up single-variable nested sub-datasets safely
     for key, value in out.items():
         if isinstance(value, xarray.Dataset):
             inner = list(value.data_vars)[0]

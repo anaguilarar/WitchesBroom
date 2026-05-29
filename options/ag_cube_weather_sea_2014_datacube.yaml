@@ -1,13 +1,13 @@
-# Philippines 2024 — STEP 2: stack raw tiles into one NetCDF cube
-# Run: python -m src.data.download_climate --config options/ag_cube_weather_phl_2024_datacube.yaml
+# SEA 2014 — STEP 2: stack raw tiles into one NetCDF cube
+# Run: python -m src.data.download_climate --config options/ag_cube_weather_phl_2024_download.yaml
 
 DATES:
-  starting_date: "2023-10-01"
-  ending_date:   "2024-09-30"
+  starting_date: "2013-01-01"   # 6 months before earliest collection (2024-04-02)
+  ending_date:   "2014-12-31"   # covers last collection date (2024-09-18)
 
 SPATIAL_INFO:
   spatial_file: null
-  extent: [121.0, 7.0, 126.0, 18.0]
+  extent: [98.5, 9.9, 109.1, 22.7]   # [xmin, ymin, xmax, ymax]  Philippines
 
 PATHS:
   output_path: outputs/climate_data
@@ -28,9 +28,9 @@ WEATHER:
     precipitation:        {mission: chirps, source: chirps}
 
 GENERAL:
-  task:               datacube
-  suffix:             phl_2024
-  ncores:             5
-  export_as_netcdf:   false
-  agera5_version:     "2_0"
+  task:              datacube
+  suffix:            sea_2014
+  ncores:            5
+  export_as_netcdf:  false
+  agera5_version:    "2_0"
   reference_variable: precipitation

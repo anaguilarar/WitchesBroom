@@ -6,10 +6,9 @@ __pycache__/
 # Jupyter Notebooks
 .ipynb_checkpoints
 */.ipynb_checkpoints/*
-
+!src/data/*.py
 # Data and Outputs (Large Files)
 data/
-data/*.parquet
 outputs/
 *.nc
 *.tif
@@ -31,3 +30,6 @@ venv/
 # OS
 .DS_Store
 Thumbs.db
+
+# notebooks
+exploratory.ipynb

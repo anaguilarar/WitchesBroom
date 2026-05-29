@@ -54,6 +54,7 @@ def plot_facet_grid_with_points(xr_ds, points_gdf=None, ncols=3, figsize=(15, 12
     figsize : tuple
     """
     variables = list(xr_ds.data_vars)
+    variables.remove('spatial_ref') if 'spatial_ref' in variables else None
     n_vars = len(variables)
     nrows = math.ceil(n_vars / ncols)
 
@@ -61,6 +62,7 @@ def plot_facet_grid_with_points(xr_ds, points_gdf=None, ncols=3, figsize=(15, 12
     axes = axes.flatten()
 
     for i, var_name in enumerate(variables):
+        
         ax = axes[i]
         xr_ds[var_name].plot(
             ax=ax,

@@ -56,16 +56,20 @@ def calculate_meteorological_summaries(xrdata, summaries_config):
     """
     summaries = {}
 
-    for k, v in summaries_config.items():
-        if k == "dtd_monthly":
-            continue
-        var_name = v[0] if isinstance(v, list) else v
+    for cgf in summaries_config:
 
-        if '_avg' in k:
-            summaries[k] = xrdata[var_name].mean(dim='time', keep_attrs=True)
-        elif '_accum' in k:
-            summaries[k] = xrdata[var_name].sum(dim='time', keep_attrs=True)
-
+        var_name = cgf.meteorological_variable[0] if isinstance(cgf.meteorological_variable, list) else cgf.meteorological_variable
+        summary_function = cgf.summary_function
+        if summary_function == 'mean':
+            colname = f"{var_name}_avg"
+            summaries[colname] = xrdata[var_name].mean(dim='date', keep_attrs=True)
+            
+        elif summary_function == 'sum':
+            colname = f"{var_name}_accum"
+            summaries[colname] = xrdata[var_name].sum(dim='date', keep_attrs=True)
+        else:
+            raise ValueError(f"Unsupported summary_function '{summary_function}' in config")
+    
     # Unwrap single-variable Datasets returned by some xarray operations
     for key, value in summaries.items():
         if isinstance(value, xarray.Dataset):
@@ -74,20 +78,5 @@ def calculate_meteorological_summaries(xrdata, summaries_config):
 
     summaries_ds = xarray.Dataset(summaries)
 
-    if "dtd_monthly" in summaries_config:
-        var_tmax, var_tmin = summaries_config["dtd_monthly"]
-
-        collection_date = pd.to_datetime(xrdata.time.values.max())
-        range_days = pd.Index(xrdata.time.values) - pd.to_datetime(collection_date)
-        partial_monthlydates = np.arange(-180, 1, 30)
-
-        dtd = xrdata[var_tmax] + xrdata[var_tmin]
-        dtd = dtd.assign_coords(monthly=('time', range_days.days))
-        dtd_monthly = dtd.groupby_bins('monthly', bins=partial_monthlydates).mean()
-        dtd_monthly.coords['monthly_bins'] = [
-            f"dtd_m{i+1}" for i in range(len(dtd_monthly.monthly_bins))
-        ]
-        dtd_vars_ds = dtd_monthly.to_dataset(dim='monthly_bins')
-        summaries_ds = xarray.merge([summaries_ds, dtd_vars_ds])
 
     return summaries_ds
