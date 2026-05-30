@@ -50,6 +50,8 @@ class GeneralInfoConfig(BaseModel):
     """
     n_cores: Annotated[int, Field(description='Number of CPU cores to allocate for parallel worker pools')]
     output_path: Annotated[Path, Field(description='Directory path where final results will be serialized')]
+    year_oi: Annotated[Optional[int], Field(default=None, description="Year of interest for filtering climate data layers (e.g., 2014). If None, no year-based filtering will be applied.")]
+    
     spatial_data_path: Annotated[
         Optional[Path], 
         Field(default=None, description="Path to coordinate layers (e.g., shapefile/GeoJSON) for zonal/point extractions.")
@@ -77,7 +79,8 @@ class DataSummarizationConfig(BaseModel):
     temporal_window: Annotated[Optional[int], Field(default=6)]
     nmonths_lookahead: Annotated[Optional[int], Field(default=0)]
     nmonths_lookback: Annotated[Optional[int], Field(default=6)]
-
+    output_filename: Annotated[Optional[str], Field(default="extracted_climate_data.csv", description="Filename for the extracted climate data CSV output")]
+    
     @model_validator(mode='after')
     def validate_date_columns(self) -> 'DataSummarizationConfig':
         if self.field_data_source and not (self.column_starting_date or self.column_ending_date):

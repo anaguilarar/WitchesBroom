@@ -2,11 +2,11 @@ general_info:
   n_cores: 1
   output_path: "outputs/climate_indices" 
   spatial_data_path: "outputs/spatial_data/spatial_data_unique_collection_coords_gridcell_v2.parquet"
-  year_oi: 2014
+  year_oi: 2022
 
 # Environmental input and processing settings (ClimateConfig)
 climate_config:
-  climate_data_path: "outputs/climate_data/weather_sea_2014_2013_2014.nc" # Root path to climate grids
+  climate_data_path: "outputs/climate_data/weather_sea_2022_2021_2022.nc" # Root path to climate grids
   
   # List of complex climate indices to calculate (List[ClimateIndex])
   indices:
@@ -185,7 +185,7 @@ climate_config:
 # Trial locations and temporal alignments (DataSummarizationConfig)
 data_summarization:
   field_data_source: "outputs/spatial_data/spatial_data_unique_collection_coords_gridcell_v2.parquet"
-  output_filename: "extracted_climate_data_sea_2014.csv"
+  output_filename: "extracted_climate_data_sea_2022.csv"
   column_starting_date: null
   column_ending_date: "collection"            # Column mapping the end of the experimental event
   temporal_window: 6                            # Evaluates a 6-month aggregate window

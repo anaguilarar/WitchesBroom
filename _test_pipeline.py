@@ -112,6 +112,11 @@ INDICES_DICT = {
     "daily_intensity_index":  ["precipitation", 1.0],
 }
 
+windows = {
+    "m1_m3": (eval_date - timedelta(days=WINDOW),   eval_date),
+    "m4_m6": (eval_date - timedelta(days=LOOKBACK),  eval_date - timedelta(days=WINDOW+1)),
+}
+
 window_results = {}
 for label, (wstart, wend) in windows.items():
     w = ds_synth.sel(date=slice(wstart, wend))
