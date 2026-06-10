@@ -70,7 +70,7 @@ VARIABLES_DICT = {
 }
 
 INDICES_DICT = {
-    "vpd_lt_15":              ["vpd", 1.5],
+    "vpd_lt_20":              ["vpd", 1.5],
     "n_vpd_spells":           ["vpd", 1.5, 7],
     "n_wet_spells":           ["precipitation", 1.0, 7],
     "n_dry_spells":           ["precipitation", 1.0, 7],

@@ -23,7 +23,7 @@ def climate_units(xrdataset):
     xrdataset['tmax'] = xrdataset['tmax'] - 273.15 if xrdataset['tmax'].mean().values> 100 else xrdataset['tmax']
     xrdataset['tmin'] = xrdataset['tmin'] - 273.15 if xrdataset['tmin'].mean().values> 100 else xrdataset['tmin']
     xrdataset['dpt'] = xrdataset['dpt'] - 273.15 if xrdataset['dpt'].mean().values> 100 else xrdataset['dpt']
-    xrdataset['vpd'] = xrdataset['vpd'] * 0.1
+    xrdataset['vpd'] = xrdataset['vpd'] * 0.1 if float(xrdataset['vpd'].max()) > 10 else xrdataset['vpd']
 
     return xrdataset
 

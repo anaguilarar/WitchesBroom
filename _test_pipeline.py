@@ -102,7 +102,7 @@ VARIABLES_DICT = {
     "srad_accum":   ["srad"],
 }
 INDICES_DICT = {
-    "vpd_lt_15":              ["vpd", 1.5],
+    "vpd_lt_20":              ["vpd", 1.5],
     "n_wet_spells":           ["precipitation", 1.0, 7],
     "n_dry_spells":           ["precipitation", 1.0, 7],
     "avg_wet_spell_duration": ["precipitation", 1.0, 7],

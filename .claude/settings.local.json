@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p \"/c/Users/AndresAguilar/.claude/skills/sciplot-skill-workspace/evals\")",
+      "Bash(mkdir -p \"/c/Users/AndresAguilar/.claude/skills/sciplot-skill-workspace/iteration-1\")",
+      "Bash(python3 *)",
+      "Bash(python -c ' *)",
+      "Bash(python *)",
+      "Bash(pip install *)"
+    ]
+  }
+}

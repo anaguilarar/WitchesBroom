@@ -46,7 +46,7 @@ def from_tabular_to_geospatial(df: pd.DataFrame, x_col: str, y_col: str,
 # Unique-coordinate derivation
 # ---------------------------------------------------------------------------
 
-def create_unique_coordinates(gpdf: gpd.GeoDataFrame, output_dir: str) -> gpd.GeoDataFrame:
+def create_unique_coordinates(gpdf: gpd.GeoDataFrame, date_col:str = 'collection_date_YYYYMMDD', eval_col: str = 'visual_symptom',  output_dir: str = '', save_as_parquet = True, add_variable = None) -> gpd.GeoDataFrame:
     """
     Derive unique observation locations and compute disease symptom frequency.
 
@@ -58,23 +58,43 @@ def create_unique_coordinates(gpdf: gpd.GeoDataFrame, output_dir: str) -> gpd.Ge
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
     gs = gpdf.to_crs('ESRI:54052').copy()
-    gs['year'] = gs['collection_date_YYYYMMDD'].apply(lambda x: int(str(x)[:4]))
+    gs['year'] = gs[date_col].apply(lambda x: int(str(x)[:4]))
+
+    id_column = 'unique_coordinates'
     gs['unique_coordinates'] = gs.apply(
         lambda r: f"{r['longitude']}_{r['latitude']}", axis=1
     )
 
-    gs_unique = gs.drop_duplicates(subset=['unique_coordinates']).copy()
-    gs_unique['visual_symptom_frequency'] = 0.0
+    if add_variable:
+        gs['un_var'] = gs.apply(
+            lambda r: f"{r['unique_coordinates']}_{r[add_variable]}", axis=1
+        )    
+        id_column ='un_var'
 
-    for coord, subset in gs_unique.groupby('unique_coordinates'):
-        all_obs = gs.loc[gs['unique_coordinates'] == coord,
-                         ['collection_date_YYYYMMDD', 'visual_symptom']]
-        positive = all_obs.loc[all_obs['visual_symptom'] == 'P']
-        freq = (len(positive) / len(all_obs)) * 100
+    gs_unique = gs.drop_duplicates(subset=[id_column]).copy()
+    gs_unique['visual_symptom_frequency'] = 0.0
+    
+    for i, (coord, subset) in enumerate(gs_unique.groupby(id_column)):
+        
+        all_obs = gs.loc[gs[id_column] == coord,
+                            [date_col, eval_col]]
+        
+        positive = all_obs.loc[all_obs[eval_col] == 'P']
+        
+        
+        freq = (len(positive) / len(all_obs))
+        
         gs_unique.loc[subset.index, 'visual_symptom_frequency'] = freq
 
-    out_path = os.path.join(output_dir, 'spatial_data_unique.shp')
-    gs_unique.to_file(out_path, driver='ESRI Shapefile')
+    
+    if save_as_parquet: 
+        out_path = os.path.join(output_dir, 'spatial_data_unique.parquet')
+        
+        gs_unique.to_parquet(out_path)
+    else:
+        out_path = os.path.join(output_dir, 'spatial_data_unique.shp')
+        gs_unique.to_file(out_path, driver='ESRI Shapefile')
+        
     print(f"Saved unique coordinates → {out_path}")
     return gs_unique
 
@@ -84,16 +104,19 @@ def create_unique_coordinates(gpdf: gpd.GeoDataFrame, output_dir: str) -> gpd.Ge
 # ---------------------------------------------------------------------------
 
 def create_symptoms_raster(gpdf: gpd.GeoDataFrame, climate_data: xarray.Dataset,
-                            output_dir: str, year: int = 2014) -> None:
+                            output_dir: str, year: int = 2014, date_col:str = 'collection', 
+                            eval_col:str = 'visual_s_1') -> None:
     """
     Rasterise mean symptom frequency onto the climate grid for *year*.
 
     Saves a GeoTIFF to *output_dir*/visual_symptoms_{year}.tif.
     """
+    import rioxarray as rio
+    
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
     gpdf = gpdf.copy()
-    gpdf['year'] = gpdf['collection'].astype(str).str[:4].astype(int)
+    gpdf['year'] = gpdf[date_col].astype(str).str[:4].astype(int)
     gpdf = gpdf.loc[gpdf.year == year].to_crs(climate_data.rio.crs)
 
     da = climate_data.precipitation.isel(date=0)
@@ -111,7 +134,7 @@ def create_symptoms_raster(gpdf: gpd.GeoDataFrame, climate_data: xarray.Dataset,
 
     grid = gpd.GeoDataFrame({'cell_id': ids}, geometry=polygons, crs=climate_data.rio.crs)
     joined = gpd.sjoin(gpdf, grid, predicate='within')
-    cell_mean = joined.groupby('cell_id')['visual_s_1'].mean()
+    cell_mean = joined.groupby('cell_id')[eval_col].mean()
 
     result = np.full(ny * nx, np.nan)
     result[cell_mean.index] = cell_mean.values
@@ -123,6 +146,8 @@ def create_symptoms_raster(gpdf: gpd.GeoDataFrame, climate_data: xarray.Dataset,
     out_path = os.path.join(output_dir, f'visual_symptoms_{year}.tif')
     mean_da.rio.to_raster(out_path)
     print(f"Saved symptom raster → {out_path}")
+    return mean_da, cell_mean
+    
 
 
 # ---------------------------------------------------------------------------
